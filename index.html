@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work and Play! - Interactive Quest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #0a0a1a;
+            color: #fff;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Video Background */
+        #videoContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .video-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #videoWelcome { z-index: 1; }
+        #videoSuccess, #videoOops {
+            z-index: 2;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #videoSuccess.active, #videoOops.active { opacity: 1; }
+
+        /* Top Bar */
+        .top-bar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            background: rgba(20, 20, 40, 0.6);
+            backdrop-filter: blur(20px);
+            padding: 14px 35px;
+            border-radius: 50px;
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(100, 150, 255, 0.2);
+        }
+
+        .game-title {
+            font-size: 26px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .restart-btn {
+            padding: 12px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+        }
+
+        /* Stars Container - Bottom Center */
+        .stars-bottom {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 480px;
+            background: rgba(20, 20, 40, 0.6);
+            backdrop-filter: blur(20px);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 2px solid rgba(255, 215, 0, 0.25);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.15);
+        }
+
+        .star {
+            font-size: 16px;
+            opacity: 0.3;
+            transition: all 0.3s;
+            filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4));
+            line-height: 1;
+        }
+
+        .star.active {
+            opacity: 1;
+            transform: scale(1.25);
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+        }
+
+        /* Category Selection Screen */
+        .category-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 150;
+            background: rgba(10, 10, 26, 0.75);
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .category-screen.hidden { display: none; }
+
+        .category-title {
+            font-size: 56px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .category-subtitle {
+            font-size: 24px;
+            color: #b8c5ff;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .category-card {
+            padding: 40px 30px;
+            background: rgba(30, 30, 60, 0.7);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .category-card:hover:not(.completed) {
+            transform: translateY(-5px);
+            border-color: rgba(100, 150, 255, 0.8);
+            box-shadow: 0 15px 40px rgba(100, 150, 255, 0.4);
+        }
+
+        .category-card:hover:not(.completed)::before { opacity: 1; }
+
+        .category-card.completed {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: rgba(46, 204, 113, 0.5);
+        }
+
+        .category-card.completed::after {
+            content: '✅';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 36px;
+        }
+
+        .category-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .category-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .category-desc {
+            font-size: 18px;
+            color: #b8c5ff;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Question Panel - Left Bottom */
+        .question-panel {
+            position: fixed;
+            left: 30px;
+            bottom: 80px;
+            width: 40%;
+            max-width: 600px;
+            z-index: 100;
+            background: rgba(20, 20, 40, 0.75);
+            backdrop-filter: blur(25px);
+            padding: 35px;
+            border-radius: 25px;
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(100, 150, 255, 0.3);
+        }
+
+        .question-panel.hidden { display: none; }
+
+        .category-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .question-number {
+            font-size: 20px;
+            color: #667eea;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        .question-text {
+            font-size: 32px;
+            line-height: 1.4;
+            margin-bottom: 25px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            font-weight: 500;
+        }
+
+        .clock-display {
+            font-size: 110px;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .answers-container {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .answer-btn {
+            padding: 22px 28px;
+            font-size: 26px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
+        }
+
+        .answer-btn:hover:not(:disabled) {
+            background: rgba(100, 150, 255, 0.25);
+            border-color: rgba(100, 150, 255, 0.7);
+            transform: translateX(8px);
+        }
+
+        .answer-btn:disabled { cursor: not-allowed; opacity: 0.7; }
+
+        .answer-btn.correct {
+            background: rgba(46, 204, 113, 0.4);
+            border-color: #2ecc71;
+            box-shadow: 0 0 25px rgba(46, 204, 113, 0.6);
+        }
+
+        .answer-btn.wrong {
+            background: rgba(231, 76, 60, 0.4);
+            border-color: #e74c3c;
+            box-shadow: 0 0 25px rgba(231, 76, 60, 0.6);
+        }
+
+        /* Congratulations Screen */
+        .congrats-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 200;
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(20px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.5s;
+        }
+
+        .congrats-screen.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .congrats-title {
+            font-size: 88px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .congrats-text {
+            font-size: 34px;
+            color: #fff;
+            margin-bottom: 50px;
+            text-align: center;
+        }
+
+        .congrats-btn {
+            padding: 22px 55px;
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .congrats-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.7);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .question-panel {
+                width: 48%;
+                left: 20px;
+                bottom: 70px;
+                padding: 28px;
+            }
+            .question-text { font-size: 26px; }
+            .answer-btn { font-size: 22px; padding: 18px 22px; }
+            .clock-display { font-size: 90px; }
+            .top-bar { gap: 18px; padding: 12px 28px; }
+            .game-title { font-size: 22px; }
+            .stars-bottom { max-width: 400px; gap: 5px; padding: 8px 16px; }
+            .star { font-size: 14px; }
+            .category-title { font-size: 44px; }
+            .categories-grid { gap: 18px; max-width: 800px; }
+            .category-card { padding: 30px 25px; }
+            .category-icon { font-size: 52px; }
+            .category-name { font-size: 22px; }
+            .category-desc { font-size: 16px; }
+        }
+
+        @media (max-width: 768px) {
+            .question-panel {
+                width: 92%;
+                left: 4%;
+                bottom: 75px;
+                padding: 22px;
+            }
+            .top-bar {
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 10px 18px;
+                width: 95%;
+            }
+            .game-title { font-size: 18px; }
+            .restart-btn { padding: 10px 18px; font-size: 14px; }
+            .stars-bottom {
+                max-width: 95%;
+                bottom: 10px;
+                gap: 4px;
+                padding: 8px 12px;
+            }
+            .star { font-size: 13px; }
+            .question-text { font-size: 22px; }
+            .answer-btn { font-size: 19px; padding: 14px 18px; }
+            .clock-display { font-size: 72px; }
+            .category-badge { font-size: 14px; padding: 6px 14px; }
+            .question-number { font-size: 16px; }
+            .congrats-title { font-size: 56px; }
+            .congrats-text { font-size: 24px; }
+            .category-title { font-size: 34px; }
+            .category-subtitle { font-size: 18px; }
+            .categories-grid { grid-template-columns: 1fr; gap: 14px; }
+            .category-card { padding: 22px; }
+            .category-icon { font-size: 44px; }
+            .category-name { font-size: 20px; }
+            .category-desc { font-size: 15px; }
+        }
+
+        @media (max-width: 480px) {
+            .question-panel { width: 95%; left: 2.5%; bottom: 70px; padding: 18px; }
+            .game-title { font-size: 16px; }
+            .star { font-size: 11px; }
+            .stars-bottom { gap: 3px; padding: 6px 10px; }
+            .question-text { font-size: 19px; }
+            .answer-btn { font-size: 17px; padding: 12px 16px; }
+            .clock-display { font-size: 56px; }
+            .category-title { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Video Container -->
+    <div id="videoContainer">
+        <video id="videoWelcome" class="video-bg" autoplay muted loop playsinline>
+            <source src="privet.mp4" type="video/mp4">
+        </video>
+        <video id="videoSuccess" class="video-bg" playsinline>
+            <source src="ura.mp4" type="video/mp4">
+        </video>
+        <video id="videoOops" class="video-bg" playsinline>
+            <source src="oops.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="game-title">WORK AND PLAY!</div>
+        <button class="restart-btn" onclick="restartGame()">RESTART</button>
+    </div>
+
+    <!-- Stars Container - Bottom Center -->
+    <div class="stars-bottom" id="starsContainer"></div>
+
+    <!-- Category Selection Screen -->
+    <div class="category-screen" id="categoryScreen">
+        <div class="category-title">Choose a Category</div>
+        <div class="category-subtitle">Complete all 4 categories to collect 20 stars!</div>
+        <div class="categories-grid" id="categoriesGrid"></div>
+    </div>
+
+    <!-- Question Panel -->
+    <div class="question-panel hidden" id="questionPanel">
+        <div class="category-badge" id="categoryBadge"></div>
+        <div class="question-number" id="questionNumber">Question 1 of 5</div>
+        <div id="questionContent">
+            <div class="question-text" id="questionText"></div>
+            <div class="answers-container" id="answersContainer"></div>
+        </div>
+    </div>
+
+    <!-- Congratulations Screen -->
+    <div class="congrats-screen" id="congratsScreen">
+        <div class="congrats-title">CONGRATULATIONS!</div>
+        <div class="congrats-text">You passed the quest and collected all 20 stars!</div>
+        <button class="congrats-btn" onclick="restartGame()">PLAY AGAIN</button>
+    </div>
+
+    <script>
+        // Categories data
+        const categories = {
+            guessJob: {
+                name: "Guess the Job",
+                icon: "👷",
+                desc: "Read clues and guess the profession",
+                questions: [
+                    {
+                        question: "I work at a hospital. I help sick people. I wear a white uniform. Who am I?",
+                        answers: ["A mechanic", "A nurse", "A waiter", "A baker"],
+                        correctIndex: 1
+                    },
+                    {
+                        question: "I work in a garage. I fix cars. I wear a uniform. Who am I?",
+                        answers: ["A baker", "A postman", "A mechanic", "A nurse"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "I work at a cafe. I serve food and drinks. I am very polite. Who am I?",
+                        answers: ["A waiter", "A vet", "A greengrocer", "A postman"],
+                        correctIndex: 0
+                    },
+                    {
+                        question: "I carry a big bag. I take letters to people's houses. I walk a lot. Who am I?",
+                        answers: ["A nurse", "A baker", "A postman", "A taxi driver"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "I sell fruit and vegetables. I work at a greengrocer's. Who am I?",
+                        answers: ["A baker", "A mechanic", "A greengrocer", "A waiter"],
+                        correctIndex: 2
+                    }
+                ]
+            },
+            whatTime: {
+                name: "What's the Time?",
+                icon: "🕐",
+                desc: "Look at the clock and tell the time",
+                questions: [
+                    {
+                        question: "What time is it?",
+                        clock: "3:15",
+                        answers: ["Quarter to three", "Half past three", "Quarter past three", "Three o'clock"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "What time is it?",
+                        clock: "6:30",
+                        answers: ["Half past six", "Quarter past six", "Quarter to seven", "Six o'clock"],
+                        correctIndex: 0
+                    },
+                    {
+                        question: "What time is it?",
+                        clock: "10:45",
+                        answers: ["Quarter past ten", "Half past ten", "Quarter to eleven", "Ten o'clock"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "What time is it?",
+                        clock: "9:00",
+                        answers: ["Half past nine", "Nine o'clock", "Quarter past nine", "Quarter to nine"],
+                        correctIndex: 1
+                    },
+                    {
+                        question: "What time is it?",
+                        clock: "2:30",
+                        answers: ["Quarter past two", "Half past two", "Quarter to three", "Two o'clock"],
+                        correctIndex: 1
+                    }
+                ]
+            },
+            matchJobAction: {
+                name: "Match Job & Action",
+                icon: "🔗",
+                desc: "What does this person do?",
+                questions: [
+                    {
+                        question: "What does a baker do?",
+                        answers: ["Fixes cars", "Bakes bread and makes cakes", "Serves food and drinks", "Helps sick people"],
+                        correctIndex: 1
+                    },
+                    {
+                        question: "What does a nurse do?",
+                        answers: ["Sells fruit and vegetables", "Takes letters to houses", "Helps sick people", "Fixes cars"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "What does a postman do?",
+                        answers: ["Serves food and drinks", "Takes letters to people's houses", "Bakes bread", "Helps sick people"],
+                        correctIndex: 1
+                    },
+                    {
+                        question: "What does a greengrocer do?",
+                        answers: ["Bakes bread and makes cakes", "Fixes cars in a garage", "Sells fruit and vegetables", "Serves food and drinks"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "What does a mechanic do?",
+                        answers: ["Helps sick people", "Fixes cars in a garage", "Takes letters to houses", "Serves food and drinks"],
+                        correctIndex: 1
+                    }
+                ]
+            },
+            haveTo: {
+                name: "Have to / Don't have to",
+                icon: "⚖️",
+                desc: "Choose the correct modal verb",
+                questions: [
+                    {
+                        question: "A nurse ___ help sick people.",
+                        answers: ["don't have to", "doesn't have to", "has to", "have to"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "I ___ work at night. (✗)",
+                        answers: ["have to", "has to", "don't have to", "doesn't have to"],
+                        correctIndex: 2
+                    },
+                    {
+                        question: "We ___ wear a uniform at school.",
+                        answers: ["don't have to", "have to", "has to", "doesn't have to"],
+                        correctIndex: 1
+                    },
+                    {
+                        question: "She ___ pay for her meals at home. (✗)",
+                        answers: ["don't have to", "has to", "have to", "doesn't have to"],
+                        correctIndex: 3
+                    },
+                    {
+                        question: "A baker ___ wake up early every morning.",
+                        answers: ["don't have to", "doesn't have to", "have to", "has to"],
+                        correctIndex: 3
+                    }
+                ]
+            }
+        };
+
+        // Game state
+        let currentCategory = null;
+        let currentQuestionInCategory = 0;
+        let stars = 0;
+        let isLocked = false;
+        let fallbackTimer = null;
+        let completedCategories = {};
+
+        // DOM elements
+        const videoWelcome = document.getElementById('videoWelcome');
+        const videoSuccess = document.getElementById('videoSuccess');
+        const videoOops = document.getElementById('videoOops');
+        const starsContainer = document.getElementById('starsContainer');
+        const categoryScreen = document.getElementById('categoryScreen');
+        const categoriesGrid = document.getElementById('categoriesGrid');
+        const questionPanel = document.getElementById('questionPanel');
+        const categoryBadge = document.getElementById('categoryBadge');
+        const questionNumber = document.getElementById('questionNumber');
+        const questionContent = document.getElementById('questionContent');
+        const congratsScreen = document.getElementById('congratsScreen');
+
+        // Initialize game
+        function initGame() {
+            createStars();
+            renderCategories();
+            setupVideoEvents();
+            showCategoryScreen();
+        }
+
+        // Create 20 stars
+        function createStars() {
+            starsContainer.innerHTML = '';
+            for (let i = 0; i < 20; i++) {
+                const star = document.createElement('span');
+                star.className = 'star';
+                star.textContent = '⭐';
+                star.id = `star${i}`;
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Render category cards
+        function renderCategories() {
+            categoriesGrid.innerHTML = '';
+            Object.keys(categories).forEach(key => {
+                const cat = categories[key];
+                const card = document.createElement('div');
+                card.className = 'category-card' + (completedCategories[key] ? ' completed' : '');
+                card.innerHTML = `
+                    <div class="category-icon">${cat.icon}</div>
+                    <div class="category-name">${cat.name}</div>
+                    <div class="category-desc">${cat.desc}</div>
+                `;
+                if (!completedCategories[key]) {
+                    card.onclick = () => startCategory(key);
+                }
+                categoriesGrid.appendChild(card);
+            });
+        }
+
+        // Show category screen
+        function showCategoryScreen() {
+            categoryScreen.classList.remove('hidden');
+            questionPanel.classList.add('hidden');
+            renderCategories();
+        }
+
+        // Start a category
+        function startCategory(categoryKey) {
+            currentCategory = categoryKey;
+            currentQuestionInCategory = 0;
+            categoryScreen.classList.add('hidden');
+            questionPanel.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        // Load current question
+        function loadQuestion() {
+            const cat = categories[currentCategory];
+            const q = cat.questions[currentQuestionInCategory];
+
+            categoryBadge.textContent = cat.icon + ' ' + cat.name;
+            questionNumber.textContent = `Question ${currentQuestionInCategory + 1} of 5`;
+
+            let contentHTML = '';
+            if (q.clock) {
+                contentHTML += `<div class="clock-display">${q.clock}</div>`;
+            }
+            contentHTML += `<div class="question-text">${q.question}</div>`;
+            contentHTML += `<div class="answers-container" id="answersContainer"></div>`;
+            questionContent.innerHTML = contentHTML;
+
+            const answersContainer = document.getElementById('answersContainer');
+            q.answers.forEach((answer, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'answer-btn';
+                btn.textContent = answer;
+                btn.onclick = () => checkAnswer(index, btn);
+                answersContainer.appendChild(btn);
+            });
+
+            unlockInterface();
+        }
+
+        // Check answer
+        function checkAnswer(selectedIndex, btn) {
+            if (isLocked) return;
+
+            isLocked = true;
+            const q = categories[currentCategory].questions[currentQuestionInCategory];
+            const allButtons = document.querySelectorAll('.answer-btn');
+
+            allButtons.forEach(b => b.disabled = true);
+
+            if (selectedIndex === q.correctIndex) {
+                btn.classList.add('correct');
+                playSuccessVideo();
+                addStar();
+
+                setTimeout(() => {
+                    currentQuestionInCategory++;
+                    if (currentQuestionInCategory >= 5) {
+                        completedCategories[currentCategory] = true;
+                        currentCategory = null;
+                        currentQuestionInCategory = 0;
+
+                        if (Object.keys(completedCategories).length === 4) {
+                            showCongratulations();
+                        } else {
+                            showCategoryScreen();
+                        }
+                    } else {
+                        loadQuestion();
+                    }
+                }, 2500);
+            } else {
+                btn.classList.add('wrong');
+                playOopsVideo();
+
+                setTimeout(() => {
+                    allButtons.forEach(b => {
+                        b.disabled = false;
+                        b.classList.remove('wrong');
+                    });
+                    isLocked = false;
+                }, 2500);
+            }
+        }
+
+        // Add star
+        function addStar() {
+            const star = document.getElementById(`star${stars}`);
+            if (star) {
+                star.classList.add('active');
+                stars++;
+            }
+        }
+
+        // Play success video
+        function playSuccessVideo() {
+            videoSuccess.currentTime = 0;
+            videoSuccess.classList.add('active');
+            videoSuccess.play().catch(e => console.log('Video play error:', e));
+
+            fallbackTimer = setTimeout(() => {
+                hideReactionVideo();
+            }, 3000);
+
+            videoSuccess.onended = () => {
+                clearTimeout(fallbackTimer);
+                hideReactionVideo();
+            };
+        }
+
+        // Play oops video
+        function playOopsVideo() {
+            videoOops.currentTime = 0;
+            videoOops.classList.add('active');
+            videoOops.play().catch(e => console.log('Video play error:', e));
+
+            fallbackTimer = setTimeout(() => {
+                hideReactionVideo();
+            }, 3000);
+
+            videoOops.onended = () => {
+                clearTimeout(fallbackTimer);
+                hideReactionVideo();
+            };
+        }
+
+        // Hide reaction video
+        function hideReactionVideo() {
+            videoSuccess.classList.remove('active');
+            videoOops.classList.remove('active');
+            videoSuccess.pause();
+            videoOops.pause();
+        }
+
+        // Unlock interface
+        function unlockInterface() {
+            isLocked = false;
+            const allButtons = document.querySelectorAll('.answer-btn');
+            allButtons.forEach(b => {
+                b.disabled = false;
+                b.classList.remove('correct', 'wrong');
+            });
+        }
+
+        // Show congratulations
+        function showCongratulations() {
+            questionPanel.classList.add('hidden');
+            congratsScreen.classList.add('active');
+        }
+
+        // Restart game
+        function restartGame() {
+            videoSuccess.pause();
+            videoOops.pause();
+            hideReactionVideo();
+
+            if (fallbackTimer) {
+                clearTimeout(fallbackTimer);
+                fallbackTimer = null;
+            }
+
+            currentCategory = null;
+            currentQuestionInCategory = 0;
+            stars = 0;
+            isLocked = false;
+            completedCategories = {};
+
+            congratsScreen.classList.remove('active');
+            createStars();
+            showCategoryScreen();
+
+            videoWelcome.play().catch(e => console.log('Welcome video error:', e));
+        }
+
+        // Setup video events
+        function setupVideoEvents() {
+            videoWelcome.play().catch(e => console.log('Welcome video error:', e));
+        }
+
+        // Start game
+        initGame();
+    </script>
+</body>
+</html>
